@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 
+
 const db = mongoose.model('CoverLetter', new mongoose.Schema({
     name:{
         type: String,
@@ -29,19 +30,35 @@ router.get('/', async (req, res) =>{
     });
 });
 
+
+router.post('/:id/download', async(req, res) => {
+    var path = require('path');
+    res.sendFile(path.resolve(`pdfs/${req.params.id}.pdf`)); // Set disposition and send it.
+});
+
+
+
 router.post('/', async(req, res) =>{
     console.log("****************");
     console.log(req.body.name);
     console.log("*******************");
 
     let coverletter = new db({
-        name: "Minhal Shanjer",
-        position: "Mean Stack Developer",
-        address: "166 Auburn Drive"
+        name: req.body.name,
+        position: req.body.position,
+        address: req.body.address
     });
 
     coverletter = await coverletter.save();
-    res.send("Data received");
+
+    if (coverletter){
+        generatePDF(coverletter);
+        res.send(coverletter);
+    }
+    else{
+        res.status(404).send("Could not post properly.");
+    }
+    
 });
 
 router.put('/:id', async(req,res) =>{
@@ -95,6 +112,34 @@ router.get('/:id', async(req,res) =>{
     }
 });
 
+
+const generatePDF = (coverletter) => {
+    var fonts = {
+        Roboto: {
+            normal: './fonts/Roboto-Regular.ttf',
+            bold: './fonts/Roboto-Medium.ttf',
+            italics: './fonts/Roboto-Italic.ttf',
+            bolditalics: './fonts/Roboto-MediumItalic.ttf'
+        }
+    };
+    
+    var PdfPrinter = require('pdfmake');
+    var printer = new PdfPrinter(fonts);
+    var fs = require('fs');
+    
+    var docDefinition = {
+        content: [
+            `${coverletter.id}`,
+            `${coverletter.name}`,
+            `${coverletter.position}`,
+            `${coverletter.address}`,
+        ]
+    };
+    
+    var pdfDoc = printer.createPdfKitDocument(docDefinition);
+    pdfDoc.pipe(fs.createWriteStream(`pdfs/${coverletter.id}.pdf`));
+    pdfDoc.end();
+}
 
 
 
